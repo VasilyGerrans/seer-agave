@@ -356,7 +356,6 @@ rts-alloc = { version = "0.1.1" }
 rustls = { version = "0.23.32", features = ["std"], default-features = false }
 scopeguard = "1.2.0"
 seer = { path = "seer" }
-seer-test = { path = "seer-test" }
 seer-demo = { path = "seer-demo" }
 semver = "1.0.27"
 seqlock = "0.2.0"
