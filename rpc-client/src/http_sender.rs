@@ -47,6 +47,7 @@ impl HttpSender {
     ///
     /// The URL is an HTTP URL, usually for port 8899.
     pub fn new_with_timeout<U: ToString>(url: U, timeout: Duration) -> Self {
+        println!("HTTP NEW WITH TIMEOUT {:?}", timeout);
         Self::new_with_client(
             url,
             reqwest::Client::builder()

@@ -40,7 +40,10 @@ pub(crate) fn process_message(
                     message.instructions_iter().map(|ix| ix.data),
                 )
             } else {
-                invoke_context.process_instruction(&mut compute_units_consumed, execute_timings)
+                seer::get().start_instruction(top_level_instruction_index as u8);
+                let result = invoke_context.process_instruction(&mut compute_units_consumed, execute_timings);
+                seer::get().end_instruction();
+                result
             }
         });
 

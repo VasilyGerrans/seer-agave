@@ -30,6 +30,7 @@ svm-internal = []
 agave-syscalls = { workspace = true }
 bincode = { workspace = true }
 qualifier_attr = { workspace = true }
+seer = { workspace = true }
 solana-account = { workspace = true }
 solana-bincode = { workspace = true }
 solana-clock = { workspace = true }

@@ -6,6 +6,7 @@ use {
         scheduler_messages::MaxAge,
     },
     itertools::Itertools,
+    seer,
     solana_clock::MAX_PROCESSING_AGE,
     solana_fee::FeeFeatures,
     solana_fee_structure::FeeBudgetLimits,
@@ -315,6 +316,7 @@ impl Consumer {
             })
             .collect();
 
+        seer::get().activate();
         let (load_and_execute_transactions_output, load_execute_us) = measure_us!(bank
             .load_and_execute_transactions(
                 batch,
@@ -331,6 +333,7 @@ impl Consumer {
                     ),
                 }
             ));
+        seer::get().deactivate();
         execute_and_commit_timings.load_execute_us = load_execute_us;
 
         let LoadAndExecuteTransactionsOutput {

@@ -36,6 +36,7 @@ impl LogCollector {
             }
         } else {
             self.bytes_written = bytes_written;
+            seer::get().log(message);
             self.messages.push(message.to_string());
         }
     }

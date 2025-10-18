@@ -27,6 +27,7 @@ use {
     solana_signature::Signature,
     solana_sysvar::SysvarSerialize,
     solana_transaction::versioned::VersionedTransaction,
+    std::time::{Duration, SystemTime},
     tarpc::{
         client::{self, NewClient, RequestDispatch},
         context::{self, Context},
@@ -204,7 +205,8 @@ impl BanksClient {
         transaction: impl Into<VersionedTransaction>,
         commitment: CommitmentLevel,
     ) -> Result<(), BanksClientError> {
-        let ctx = context::current();
+        let mut ctx = context::current();
+        ctx.deadline = SystemTime::now() + Duration::from_secs(600);
         match self
             .process_transaction_with_commitment_and_context(ctx, transaction, commitment)
             .await?
@@ -221,7 +223,8 @@ impl BanksClient {
         &self,
         transaction: impl Into<VersionedTransaction>,
     ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
-        let ctx = context::current();
+        let mut ctx = context::current();
+        ctx.deadline = SystemTime::now() + Duration::from_secs(600);
         self.process_transaction_with_metadata_and_context(ctx, transaction.into())
             .await
     }
@@ -233,7 +236,8 @@ impl BanksClient {
         transaction: impl Into<VersionedTransaction>,
         commitment: CommitmentLevel,
     ) -> Result<(), BanksClientError> {
-        let ctx = context::current();
+        let mut ctx = context::current();
+        ctx.deadline = SystemTime::now() + Duration::from_secs(600);
         match self
             .process_transaction_with_preflight_and_commitment_and_context(
                 ctx,
@@ -317,8 +321,10 @@ impl BanksClient {
         transaction: impl Into<VersionedTransaction>,
         commitment: CommitmentLevel,
     ) -> Result<BanksTransactionResultWithSimulation, BanksClientError> {
+        let mut ctx = context::current();
+        ctx.deadline = SystemTime::now() + Duration::from_secs(600);
         self.simulate_transaction_with_commitment_and_context(
-            context::current(),
+            ctx,
             transaction,
             commitment,
         )
@@ -337,7 +343,9 @@ impl BanksClient {
     /// Return the most recent rooted slot. All transactions at or below this slot
     /// are said to be finalized. The cluster will not fork to a higher slot.
     pub async fn get_root_slot(&self) -> Result<Slot, BanksClientError> {
-        self.get_slot_with_context(context::current(), CommitmentLevel::default())
+        let mut ctx = context::current();
+        ctx.deadline = SystemTime::now() + Duration::from_secs(600);
+        self.get_slot_with_context(ctx, CommitmentLevel::default())
             .await
     }
 

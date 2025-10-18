@@ -143,6 +143,9 @@ pub fn invoke_builtin_function(
     let (program_id, account_infos, input) =
         unsafe { deserialize(&mut parameter_bytes.as_slice_mut()[0] as *mut u8) };
 
+    let program = Pubkey::from(program_id);
+
+    seer::get().start_program(program);
     // Execute the program
     match std::panic::catch_unwind(AssertUnwindSafe(|| {
         builtin_function(program_id, &account_infos, input)
@@ -151,6 +154,7 @@ pub fn invoke_builtin_function(
             program_result.map_err(|program_error| {
                 let err = InstructionError::from(u64::from(program_error));
                 stable_log::program_failure(&log_collector, program_id, &err);
+                seer::get().end_program(program, Some(err.clone()));
                 let err: Box<dyn std::error::Error> = Box::new(err);
                 err
             })?;
@@ -158,12 +162,14 @@ pub fn invoke_builtin_function(
         Err(_panic_error) => {
             let err = InstructionError::ProgramFailedToComplete;
             stable_log::program_failure(&log_collector, program_id, &err);
+            seer::get().end_program(program, Some(err.clone()));
             let err: Box<dyn std::error::Error> = Box::new(err);
             Err(err)?;
         }
     };
 
     stable_log::program_success(&log_collector, program_id);
+    seer::get().end_program(program, None);
 
     // Lookup table for AccountInfo
     let account_info_map: HashMap<_, _> = account_infos.into_iter().map(|a| (a.key, a)).collect();

@@ -45,7 +45,8 @@ impl TransactionAccounts {
 
     pub(crate) fn len(&self) -> usize {
         // SAFETY: The borrow is local to this function and is only reading length.
-        unsafe { (*self.accounts.get()).len() }
+        // unsafe { (*self.accounts.get()).len() }
+        unsafe { (&*(*self.accounts.get())).len() }
     }
 
     #[cfg(not(target_os = "solana"))]
@@ -92,7 +93,7 @@ impl TransactionAccounts {
     pub(crate) fn try_borrow_mut(
         &self,
         index: IndexOfAccount,
-    ) -> Result<AccountRefMut, InstructionError> {
+    ) -> Result<AccountRefMut<'_>, InstructionError> {
         let borrow_counter = self
             .borrow_counters
             .get(index as usize)
@@ -102,7 +103,9 @@ impl TransactionAccounts {
         // SAFETY: The borrow counter guarantees this is the only mutable borrow of this account.
         // The unwrap is safe because accounts.len() == borrow_counters.len(), so the missing
         // account error should have been returned above.
-        let account = unsafe { &mut (*self.accounts.get()).get_mut(index as usize).unwrap().1 };
+        // let account = unsafe { &mut (*self.accounts.get()).get_mut(index as usize).unwrap().1 };
+        let account = unsafe { &mut (&mut *(*self.accounts.get())).get_mut(index as usize).unwrap().1 };
+
 
         Ok(AccountRefMut {
             account,
@@ -110,7 +113,8 @@ impl TransactionAccounts {
         })
     }
 
-    pub fn try_borrow(&self, index: IndexOfAccount) -> Result<AccountRef, InstructionError> {
+    // pub fn try_borrow(&self, index: IndexOfAccount) -> Result<AccountRef, InstructionError> {
+    pub fn try_borrow(&self, index: IndexOfAccount) -> Result<AccountRef<'_>, InstructionError> {
         let borrow_counter = self
             .borrow_counters
             .get(index as usize)
@@ -120,7 +124,8 @@ impl TransactionAccounts {
         // SAFETY: The borrow counter guarantees there are no mutable borrow of this account.
         // The unwrap is safe because accounts.len() == borrow_counters.len(), so the missing
         // account error should have been returned above.
-        let account = unsafe { &(*self.accounts.get()).get(index as usize).unwrap().1 };
+        // let account = unsafe { &(*self.accounts.get()).get(index as usize).unwrap().1 };
+        let account = unsafe { &(&*(*self.accounts.get())).get(index as usize).unwrap().1 };
 
         Ok(AccountRef {
             account,
@@ -152,7 +157,11 @@ impl TransactionAccounts {
 
     pub(crate) fn account_key(&self, index: IndexOfAccount) -> Option<&Pubkey> {
         // SAFETY: We never modify an account key, so returning a reference to it is safe.
-        unsafe { (*self.accounts.get()).get(index as usize).map(|acc| &acc.0) }
+        // unsafe { (*self.accounts.get()).get(index as usize).map(|acc| &acc.0) }
+        unsafe { 
+            let accounts_ref: &[(Pubkey, AccountSharedData)] = &*(*self.accounts.get());
+            accounts_ref.get(index as usize).map(|acc| &acc.0)
+        }
     }
 
     pub(crate) fn account_keys_iter(&self) -> impl Iterator<Item = &Pubkey> {

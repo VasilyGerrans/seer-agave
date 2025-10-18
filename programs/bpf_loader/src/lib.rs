@@ -1453,6 +1453,9 @@ fn execute<'a, 'b: 'a>(
     let transaction_context = &invoke_context.transaction_context;
     let instruction_context = transaction_context.get_current_instruction_context()?;
     let program_id = *instruction_context.get_program_key()?;
+
+    // seer::get().start_program(Pubkey::from(program_id));
+
     let is_loader_deprecated =
         instruction_context.get_program_owner()? == bpf_loader_deprecated::id();
     #[cfg(any(target_os = "windows", not(target_arch = "x86_64")))]

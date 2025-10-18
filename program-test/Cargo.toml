@@ -17,6 +17,7 @@ bincode = { workspace = true }
 chrono-humanize = { workspace = true }
 crossbeam-channel = { workspace = true }
 log = { workspace = true }
+seer = { workspace = true }
 serde = { workspace = true }
 solana-account = { workspace = true }
 solana-account-info = { workspace = true }

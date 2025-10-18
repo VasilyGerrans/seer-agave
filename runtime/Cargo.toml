@@ -85,6 +85,7 @@ qualifier_attr = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
+seer = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_derive = { workspace = true }

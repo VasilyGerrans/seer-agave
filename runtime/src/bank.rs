@@ -3222,6 +3222,10 @@ impl Bank {
     ) -> LoadAndExecuteTransactionsOutput {
         let sanitized_txs = batch.sanitized_transactions();
 
+        for sanitized_tx in sanitized_txs {
+            seer::get().set_current_tx(sanitized_tx.signature().clone());
+        }
+
         let (check_results, check_us) = measure_us!(self.check_transactions(
             sanitized_txs,
             batch.lock_results(),
@@ -3303,6 +3307,8 @@ impl Bank {
                 }
             }
         }
+
+        seer::get().unset_current_tx();
 
         LoadAndExecuteTransactionsOutput {
             processing_results: sanitized_output.processing_results,

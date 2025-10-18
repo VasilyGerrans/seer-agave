@@ -30,6 +30,7 @@ itertools = { workspace = true }
 log = { workspace = true }
 percentage = { workspace = true }
 rand = { workspace = true }
+seer = { workspace = true }
 serde = { workspace = true }
 solana-account = { workspace = true, features = ["bincode"] }
 solana-account-info = { workspace = true }

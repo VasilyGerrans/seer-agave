@@ -52,6 +52,23 @@ enum Output {
 }
 
 fn main() {
+    std::panic::set_hook(Box::new(|info| {
+        use std::backtrace::{Backtrace, BacktraceStatus};
+    
+        eprintln!("\n=== SOLANA TEST VALIDATOR PANIC ===");
+        eprintln!("{info}");
+    
+        let bt = Backtrace::capture();
+        match bt.status() {
+            BacktraceStatus::Captured => eprintln!("{bt}"),
+            BacktraceStatus::Disabled => eprintln!("Backtrace capture disabled."),
+            BacktraceStatus::Unsupported => eprintln!("Backtrace unsupported on this platform."),
+            _ => {}
+        }
+    
+        std::process::exit(1);
+    }));
+
     let default_args = cli::DefaultTestArgs::new();
     let version = solana_version::version!();
     let matches = cli::test_app(version, &default_args).get_matches();
@@ -221,9 +238,12 @@ fn main() {
 
     let mut upgradeable_programs_to_load = vec![];
     if let Some(values) = matches.values_of("bpf_program") {
+        let mut program_paths: HashMap<Pubkey, PathBuf> = HashMap::new();
         for (address, program) in values.into_iter().tuples() {
-            let address = parse_address(address, "address");
+            let address: Pubkey = parse_address(address, "address");
             let program_path = parse_program_path(program);
+
+            program_paths.insert(address, program_path.clone());
 
             upgradeable_programs_to_load.push(UpgradeableProgramInfo {
                 program_id: address,
@@ -232,6 +252,8 @@ fn main() {
                 program_path,
             });
         }
+
+        seer::init(program_paths, None);
     }
 
     if let Some(values) = matches.values_of("upgradeable_program") {

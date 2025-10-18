@@ -112,11 +112,11 @@ impl<T: IndexValue> AccountMapEntry<T> {
         self.slot_list.read().unwrap().len()
     }
 
-    pub fn slot_list_read_lock(&self) -> RwLockReadGuard<SlotList<T>> {
+    pub fn slot_list_read_lock(&self) -> RwLockReadGuard<'_, SlotList<T>> {
         self.slot_list.read().unwrap()
     }
 
-    pub fn slot_list_write_lock(&self) -> RwLockWriteGuard<SlotList<T>> {
+    pub fn slot_list_write_lock(&self) -> RwLockWriteGuard<'_, SlotList<T>> {
         self.slot_list.write().unwrap()
     }
 }
