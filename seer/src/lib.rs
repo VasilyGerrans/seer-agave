@@ -218,91 +218,6 @@ impl SeerHook {
         )
     }
 
-    // fn _interpolate_logs(&self, mut trace: Vec<TraceNode>) -> Vec<TraceNode> {
-    //     fn find_best_path(
-    //         nodes: &Vec<TraceNode>,
-    //         instr: u64,
-    //         depth: usize,
-    //         path_prefix: Vec<usize>,
-    //     ) -> Option<(Vec<usize>, i64, usize)> {
-    //         let mut best: Option<(Vec<usize>, i64, usize)> = None;
-
-    //         for (i, node) in nodes.iter().enumerate() {
-    //             let node_instr = node.instruction;
-
-    //             // 1️⃣ Definitive: exact match wins immediately
-    //             if node_instr == instr {
-    //                 let mut p = path_prefix.clone();
-    //                 p.push(i);
-    //                 return Some((p, 0, depth));
-    //             }
-    //             // 2️⃣ Secondary: match on instr + 8
-    //             else if node_instr == instr + 8 {
-    //                 let mut p = path_prefix.clone();
-    //                 p.push(i);
-    //                 return Some((p, 1, depth));
-    //             }
-    //             // 3️⃣ Fallback: other approximate matches
-    //             else if node_instr <= instr {
-    //                 let diff = (instr as i64 - node_instr as i64).abs();
-    //                 let replace = match best {
-    //                     None => true,
-    //                     Some((_, best_diff, best_depth)) => {
-    //                         diff < best_diff || (diff == best_diff && depth > best_depth)
-    //                     }
-    //                 };
-    //                 if replace {
-    //                     let mut p = path_prefix.clone();
-    //                     p.push(i);
-    //                     best = Some((p, diff, depth));
-    //                 }
-    //             }
-
-    //             // Recurse into children
-    //             let mut child_path = path_prefix.clone();
-    //             child_path.push(i);
-    //             if let Some((child_best_path, child_diff, child_depth)) =
-    //                 find_best_path(&node.children, instr, depth + 1, child_path)
-    //             {
-    //                 match &best {
-    //                     None => best = Some((child_best_path, child_diff, child_depth)),
-    //                     Some((_, best_diff, best_depth)) => {
-    //                         if child_diff < *best_diff
-    //                             || (child_diff == *best_diff && child_depth > *best_depth)
-    //                         {
-    //                             best = Some((child_best_path, child_diff, child_depth));
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         best
-    //     }
-
-    //     for (instr, log_str) in &self.steps_logs {
-    //         if let Some((path, _, _)) = find_best_path(&trace, *instr, 0, vec![]) {
-    //             let mut current: &mut Vec<TraceNode> = &mut trace;
-    //             for &idx in &path {
-    //                 current = &mut current[idx].children;
-    //             }
-
-    //             current.push(TraceNode {
-    //                 instruction: *instr,
-    //                 step: TraceStep {
-    //                     file: PathBuf::new(),
-    //                     line: 0,
-    //                     call: false,
-    //                     function: Some(log_str.clone()),
-    //                 },
-    //                 children: vec![],
-    //             });
-    //         }
-    //     }
-
-    //     trace
-    // }
-
     fn _interpolate_logs(&self, mut trace: Vec<TraceNode>) -> Vec<TraceNode> {
         fn find_best_path(
             nodes: &Vec<TraceNode>,
@@ -315,19 +230,16 @@ impl SeerHook {
             for (i, node) in nodes.iter().enumerate() {
                 let node_instr = node.instruction;
 
-                // 1️⃣ Definitive: exact match
                 if node_instr == instr {
                     let mut p = path_prefix.clone();
                     p.push(i);
                     return Some((p, 0, depth));
                 }
-                // 2️⃣ Secondary: instr + 8
                 else if node_instr == instr + 8 {
                     let mut p = path_prefix.clone();
                     p.push(i);
                     return Some((p, 1, depth));
                 }
-                // 3️⃣ Fallback: closest ≤ instr
                 else if node_instr <= instr {
                     let diff = (instr as i64 - node_instr as i64).abs();
                     let replace = match best {
@@ -343,7 +255,6 @@ impl SeerHook {
                     }
                 }
 
-                // Recurse into children
                 let mut child_path = path_prefix.clone();
                 child_path.push(i);
                 if let Some((child_best_path, child_diff, child_depth)) =
@@ -370,12 +281,9 @@ impl SeerHook {
                 // Traverse down the path
                 let mut current: &mut Vec<TraceNode> = &mut trace;
                 for (depth, &idx) in path.iter().enumerate() {
-                    // If we are at the last index in the path...
                     if depth == path.len() - 1 {
-                        // We’ll inspect the target node to decide where to insert
                         if let Some(target_node) = current.get(idx) {
                             if target_node.step.line == 0 {
-                                // Insert at same level instead of as child
                                 current.push(TraceNode {
                                     instruction: *instr,
                                     step: TraceStep {
@@ -390,7 +298,6 @@ impl SeerHook {
                             }
                         }
 
-                        // Otherwise, insert inside this node’s children
                         let target_children = &mut current[idx].children;
                         target_children.push(TraceNode {
                             instruction: *instr,
