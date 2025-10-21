@@ -11,7 +11,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load_config(project_root: PathBuf) -> Self {
+    pub fn new(project_root: PathBuf) -> Self {
         let kp_dir = project_root.join("target/deploy");
         let manager_pk = read_keypair_file(kp_dir.join("manager-keypair.json"))
             .unwrap()

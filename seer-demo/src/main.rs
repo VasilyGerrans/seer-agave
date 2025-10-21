@@ -14,7 +14,7 @@ async fn main() {
         .parse()
         .expect("Invalid PROJECT_ROOT");
 
-    let config = config::Config::load_config(project_root.clone());
+    let config = config::Config::new(project_root.clone());
 
     let sources: HashMap<solana_address::Address, PathBuf> = config.sources;
     let nftminter = config.nftminter_program_id;
