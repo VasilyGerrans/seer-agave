@@ -1,7 +1,7 @@
 use solana_keypair::{Keypair, Signer};
 use solana_program_test::*;
 use solana_transaction::Transaction;
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{env, path::PathBuf};
 
 mod config;
 mod instructions;
@@ -16,20 +16,13 @@ async fn main() {
 
     let config = config::Config::new(project_root.clone());
 
-    let sources: HashMap<solana_address::Address, PathBuf> = config.sources;
-    let nftminter = config.nftminter_program_id;
-    let manager = config.manager_program_id;
-    let treasury = config.treasury_program_id;
-    let campaign_account = config.campaign_keypair;
-
     let mut program_test = ProgramTest::default();
-
-    for (k, v) in sources.iter() {
+    for (k, v) in config.sources.iter() {
         utils::add_upgradeable_program_to_genesis(&mut program_test, &k, v);
     }
 
     seer::init(
-        sources.clone(),
+        config.sources,
         Some(project_root.to_string_lossy().to_string()),
     );
 
@@ -37,30 +30,31 @@ async fn main() {
     let payer = &context.payer;
     let recent_blockhash = context.last_blockhash;
 
-    let nft_init_ix = instructions::nftminter_initialize_config(&nftminter, &payer.pubkey());
+    let nft_init_ix =
+        instructions::nftminter_initialize_config(&config.nftminter_program_id, &payer.pubkey());
 
     let create_campaign_ix = instructions::manager_create_campaign(
-        &manager,
-        &treasury,
+        &config.manager_program_id,
+        &config.treasury_program_id,
         &payer.pubkey(),
-        &campaign_account.pubkey(),
+        &config.campaign_keypair.pubkey(),
     );
 
     let mint_account = Keypair::new();
 
     let contribute_ix = instructions::manager_contribute(
-        &&manager,
-        &treasury,
-        &nftminter,
+        &config.manager_program_id,
+        &config.treasury_program_id,
+        &config.nftminter_program_id,
         &payer.pubkey(),
-        &campaign_account.pubkey(),
+        &config.campaign_keypair.pubkey(),
         &mint_account.pubkey(),
     );
 
     let tx = Transaction::new_signed_with_payer(
         &[nft_init_ix, create_campaign_ix, contribute_ix],
         Some(&payer.pubkey()),
-        &[payer, &campaign_account, &mint_account],
+        &[payer, &config.campaign_keypair, &mint_account],
         recent_blockhash,
     );
 
