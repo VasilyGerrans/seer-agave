@@ -1,5 +1,5 @@
 use solana_keypair::Signer;
-use solana_program_test::*;
+use solana_program_test::ProgramTest;
 use solana_transaction::Transaction;
 use std::{env, path::PathBuf};
 
