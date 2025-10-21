@@ -6768,6 +6768,7 @@ dependencies = [
  "solana-keypair",
  "solana-loader-v3-interface 6.1.0",
  "solana-program 3.0.0",
+ "solana-program-binaries",
  "solana-program-test",
  "solana-pubkey 3.0.0",
  "solana-rent 3.0.0",
