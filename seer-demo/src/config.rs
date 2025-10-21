@@ -8,6 +8,7 @@ pub struct Config {
     pub treasury_program_id: Pubkey,
     pub nftminter_program_id: Pubkey,
     pub campaign_keypair: Keypair,
+    pub mint_keypair: Keypair,
 }
 
 impl Config {
@@ -38,6 +39,7 @@ impl Config {
             treasury_program_id: treasury_pk,
             nftminter_program_id: nftminter_pk,
             campaign_keypair: Keypair::new(),
+            mint_keypair: Keypair::new(),
         }
     }
 }

@@ -1,4 +1,4 @@
-use solana_keypair::{Keypair, Signer};
+use solana_keypair::Signer;
 use solana_program_test::*;
 use solana_transaction::Transaction;
 use std::{env, path::PathBuf};
@@ -40,26 +40,23 @@ async fn main() {
         &config.campaign_keypair.pubkey(),
     );
 
-    let mint_account = Keypair::new();
-
     let contribute_ix = instructions::manager_contribute(
         &config.manager_program_id,
         &config.treasury_program_id,
         &config.nftminter_program_id,
         &payer.pubkey(),
         &config.campaign_keypair.pubkey(),
-        &mint_account.pubkey(),
+        &config.mint_keypair.pubkey(),
     );
 
     let tx = Transaction::new_signed_with_payer(
         &[nft_init_ix, create_campaign_ix, contribute_ix],
         Some(&payer.pubkey()),
-        &[payer, &config.campaign_keypair, &mint_account],
+        &[payer, &config.campaign_keypair, &config.mint_keypair],
         recent_blockhash,
     );
 
     let transaction_hash = tx.signatures[0].clone();
-
     println!("Running tx: {}", transaction_hash);
 
     let sim = context.banks_client.simulate_transaction(tx).await.unwrap();
