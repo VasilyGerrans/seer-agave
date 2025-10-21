@@ -13,21 +13,21 @@ pub struct Config {
 
 impl Config {
     pub fn new(project_root: PathBuf) -> Self {
-        let kp_dir = project_root.join("target/deploy");
-        let manager_pk = read_keypair_file(kp_dir.join("manager-keypair.json"))
+        let deploy_dir = project_root.join("target/deploy");
+
+        let manager_pk = read_keypair_file(deploy_dir.join("manager-keypair.json"))
             .unwrap()
             .pubkey();
-        let treasury_pk = read_keypair_file(kp_dir.join("treasury-keypair.json"))
+        let treasury_pk = read_keypair_file(deploy_dir.join("treasury-keypair.json"))
             .unwrap()
             .pubkey();
-        let nftminter_pk = read_keypair_file(kp_dir.join("nftminter-keypair.json"))
+        let nftminter_pk = read_keypair_file(deploy_dir.join("nftminter-keypair.json"))
             .unwrap()
             .pubkey();
 
-        let so_dir = project_root.join("target/sbpf-solana-solana/release");
-        let manager_so = so_dir.join("manager.so").canonicalize().unwrap();
-        let treasury_so = so_dir.join("treasury.so").canonicalize().unwrap();
-        let nftminter_so = so_dir.join("nftminter.so").canonicalize().unwrap();
+        let manager_so = deploy_dir.join("manager.so").canonicalize().unwrap();
+        let treasury_so = deploy_dir.join("treasury.so").canonicalize().unwrap();
+        let nftminter_so = deploy_dir.join("nftminter.so").canonicalize().unwrap();
 
         Config {
             sources: HashMap::from([
