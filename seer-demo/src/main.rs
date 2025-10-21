@@ -20,7 +20,7 @@ async fn main() {
     let nftminter = config.nftminter_program_id;
     let manager = config.manager_program_id;
     let treasury = config.treasury_program_id;
-    let campaign_account = Keypair::new();
+    let campaign_account = config.campaign_keypair;
 
     let mut program_test = ProgramTest::default();
 

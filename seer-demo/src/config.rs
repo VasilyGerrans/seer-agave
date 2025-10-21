@@ -1,4 +1,4 @@
-use solana_keypair::{read_keypair_file, Pubkey, Signer};
+use solana_keypair::{read_keypair_file, Keypair, Pubkey, Signer};
 use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug)]
@@ -7,6 +7,7 @@ pub struct Config {
     pub manager_program_id: Pubkey,
     pub treasury_program_id: Pubkey,
     pub nftminter_program_id: Pubkey,
+    pub campaign_keypair: Keypair,
 }
 
 impl Config {
@@ -36,6 +37,7 @@ impl Config {
             manager_program_id: manager_pk,
             treasury_program_id: treasury_pk,
             nftminter_program_id: nftminter_pk,
+            campaign_keypair: Keypair::new(),
         }
     }
 }
