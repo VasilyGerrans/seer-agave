@@ -16,7 +16,7 @@ async fn main() {
 
     let config = config::Config::load_config(project_root.clone());
 
-    let dwarf_sources: HashMap<solana_address::Address, PathBuf> = config.dwarf_sources;
+    let sources: HashMap<solana_address::Address, PathBuf> = config.sources;
     let nftminter = config.nftminter_program_id;
     let manager = config.manager_program_id;
     let treasury = config.treasury_program_id;
@@ -24,11 +24,14 @@ async fn main() {
 
     let mut program_test = ProgramTest::default();
 
-    for (k, v) in dwarf_sources.iter() {
+    for (k, v) in sources.iter() {
         utils::add_upgradeable_program_to_genesis(&mut program_test, &k, v);
     }
 
-    seer::init(dwarf_sources.clone(), Some(project_root.to_string_lossy().to_string()));
+    seer::init(
+        sources.clone(),
+        Some(project_root.to_string_lossy().to_string()),
+    );
 
     let context = program_test.start_with_context().await;
     let payer = &context.payer;
@@ -45,12 +48,12 @@ async fn main() {
 
     let mint_account = Keypair::new();
 
-    let contribute_ix = instructions::manager_contribute(&
-        &manager, 
-        &treasury, 
-        &nftminter, 
-        &payer.pubkey(), 
-        &campaign_account.pubkey(), 
+    let contribute_ix = instructions::manager_contribute(
+        &&manager,
+        &treasury,
+        &nftminter,
+        &payer.pubkey(),
+        &campaign_account.pubkey(),
         &mint_account.pubkey(),
     );
 

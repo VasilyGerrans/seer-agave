@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug)]
 pub struct Config {
-    pub dwarf_sources: HashMap<Pubkey, PathBuf>,
+    pub sources: HashMap<Pubkey, PathBuf>,
     pub manager_program_id: Pubkey,
     pub treasury_program_id: Pubkey,
     pub nftminter_program_id: Pubkey,
@@ -28,7 +28,7 @@ impl Config {
         let nftminter_so = so_dir.join("nftminter.so").canonicalize().unwrap();
 
         Config {
-            dwarf_sources: HashMap::from([
+            sources: HashMap::from([
                 (manager_pk, manager_so),
                 (treasury_pk, treasury_so),
                 (nftminter_pk, nftminter_so),
