@@ -8,6 +8,7 @@ use crate::{
     vm::Config,
 };
 use std::{array, cell::UnsafeCell, fmt, mem, ops::Range, ptr};
+use seer_interface::GuestMemory;
 
 /* Explanation of the Gapped Memory
 
@@ -594,6 +595,19 @@ impl<'a> MemoryMapping<'a> {
             MemoryMapping::Aligned(m) => m.replace_region(index, region),
             MemoryMapping::Unaligned(m) => m.replace_region(index, region),
         }
+    }
+}
+
+impl<'a> GuestMemory for MemoryMapping<'a> {
+    fn read(&mut self, addr: u64, len: u64) -> Vec<u8> {
+        let host_addr = match self.map_with_access_violation_handler(AccessType::Load, addr, len) {
+            ProgramResult::Ok(ptr) => ptr,
+            ProgramResult::Err(e) => { panic!("{:?}", e) },
+        };
+        
+        let bytes = unsafe { std::slice::from_raw_parts(host_addr as *const u8, len as usize) };
+
+        bytes.to_vec()
     }
 }
 

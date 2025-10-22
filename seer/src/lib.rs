@@ -1,6 +1,10 @@
-use crate::dwarf::{source_location, DwarfParser, DwarfProgram};
+use crate::dwarf::types::account_info::AccountInfoRepr;
+use crate::dwarf::types::guest_fetch::GuestFetch;
+use crate::dwarf::{source_location, DwarfParser, DwarfProgram, VariableInterval};
 use gimli::Reader;
+use seer_interface::GuestMemory;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use solana_instruction::error::InstructionError;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -22,17 +26,17 @@ pub struct SeerHook {
     steps: Vec<u64>,
     steps_lines: HashMap<u64, TraceStep>,
     steps_logs: Vec<(u64, String)>,
+    state: HashMap<String, Value>,
     parser: Option<DwarfParser>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct TraceStep {
     file: PathBuf,
     line: u64,
     call: bool,
     function: Option<String>,
 }
-
 #[derive(Clone)]
 struct InstructionTrace {
     instruction: u64,
@@ -144,6 +148,7 @@ impl SeerHook {
             steps: Vec::new(),
             steps_lines: HashMap::new(),
             steps_logs: Vec::new(),
+            state: HashMap::new(),
             parser: parser,
         }
     }
@@ -199,6 +204,13 @@ impl SeerHook {
         Ok(())
     }
 
+    fn _save_state_to_json(&self, path: &str) -> std::io::Result<()> {
+        let json: String = serde_json::to_string_pretty(&self.state).unwrap();
+        let mut file = File::create(path)?;
+        file.write_all(json.as_bytes())?;
+        Ok(())
+    }
+
     fn _get_output_path(&self, project_root: &str, filename: &str) -> PathBuf {
         let mut path = PathBuf::from(project_root);
         path.push("seer");
@@ -207,11 +219,13 @@ impl SeerHook {
         path
     }
 
-    fn _get_current_parser(&self, current_program: &Pubkey) -> (&String, &DwarfProgram) {
-        let parser_ref = self.parser.as_ref().expect("Parser not initialized!");
+    fn _get_current_parser<'a>(
+        dwarf_parser: &'a DwarfParser,
+        current_program: &Pubkey,
+    ) -> (&'a String, &'a DwarfProgram) {
         (
-            &parser_ref.project_root,
-            parser_ref
+            &dwarf_parser.project_root,
+            dwarf_parser
                 .dwarf_programs
                 .get(current_program)
                 .expect("Current program not in dwarf_programs!"),
@@ -234,13 +248,11 @@ impl SeerHook {
                     let mut p = path_prefix.clone();
                     p.push(i);
                     return Some((p, 0, depth));
-                }
-                else if node_instr == instr + 8 {
+                } else if node_instr == instr + 8 {
                     let mut p = path_prefix.clone();
                     p.push(i);
                     return Some((p, 1, depth));
-                }
-                else if node_instr <= instr {
+                } else if node_instr <= instr {
                     let diff = (instr as i64 - node_instr as i64).abs();
                     let replace = match best {
                         None => true,
@@ -322,12 +334,12 @@ impl SeerHook {
     fn _wrap_steps(&mut self, err: Option<InstructionError>) {
         if self.steps.len() > 0 {
             let current_program = self.program_trace.last().unwrap();
-            let (project_root, current_dwarf_program) = self._get_current_parser(current_program);
+            let (project_root, current_dwarf_program) =
+                SeerHook::_get_current_parser(&self.parser.as_ref().unwrap(), current_program);
             let mut sequential_instruction_traces = Vec::new();
 
             for i in &self.steps {
                 if let Some(interval) = current_dwarf_program.interval_tree.search_deepest(i) {
-                    // println!("unwrapping {}", i);
                     let mut ordered_instruction_trace: VecDeque<TraceStep> = VecDeque::new();
                     let mut tracing = true;
                     let mut current_offset = interval.die_offset;
@@ -469,6 +481,17 @@ impl SeerHook {
                     children: Vec::new(),
                 };
                 trace_tree = self._push_to_last_leaf(trace_tree, error_node);
+
+                let filename = format!(
+                    "{}_{}_{}_error.json",
+                    self.current_tx.unwrap().to_string(),
+                    self.current_instruction,
+                    current_program.to_string(),
+                );
+
+                let output_path = self._get_output_path(project_root, &filename);
+
+                let _ = self._save_state_to_json(output_path.to_str().unwrap());
             }
 
             let filename = format!(
@@ -519,9 +542,6 @@ impl SeerHook {
                 .then(|| panic!("current_tx is not defined by start_instruction call!"));
             self.current_instruction = instruction;
             println!("instruction set {}", instruction);
-            // if instruction == 0 {
-            //     panic!("Ayo wtf");
-            // }
         }
     }
 
@@ -546,7 +566,6 @@ impl SeerHook {
             self.current_tx
                 .is_none()
                 .then(|| panic!("current_tx is not defined by start_program call!"));
-            // self.current_instruction.eq(&0).then(|| panic!("current_instruction is not defined by start_program call!"));
 
             if !self.program_trace.is_empty() {
                 self._wrap_steps(None);
@@ -584,21 +603,22 @@ impl SeerHook {
         }
     }
 
-    pub fn step(&mut self, pc: &u64) {
-        // println!("step {}", pc);
+    pub fn step<M: GuestMemory>(&mut self, pc: &u64, mem: &mut M, reg: &[u64; 12]) {
         if self.active {
             self.current_tx
                 .is_none()
                 .then(|| panic!("current_tx is not defined by step call!"));
-            // self.current_instruction.eq(&0).then(|| panic!("current_instruction is not defined by step call!"));
             self.program_trace
                 .is_empty()
                 .then(|| panic!("program_trace empty by step call!"));
 
             let current_program = self.program_trace.last().unwrap();
-            let (project_root, current_dwarf_program) = self._get_current_parser(current_program);
+            let (project_root, current_dwarf_program) =
+                SeerHook::_get_current_parser(&self.parser.as_ref().unwrap(), current_program);
 
             let pc_lookup = pc.clone();
+
+            self.state.extend(self._parse_local_variables(&pc_lookup, current_dwarf_program, mem, reg));
 
             if current_dwarf_program
                 .interval_tree
@@ -606,24 +626,14 @@ impl SeerHook {
                 .is_some()
                 || self.steps_lines.contains_key(&pc_lookup)
             {
-                // println!("found in tree");
                 self.steps.push(pc_lookup);
             } else {
                 let dwarf = current_dwarf_program.owned_dwarf.dwarf();
-                // println!("got dwarf");
                 if let Some(unit) = find_cu_for_pc(&dwarf, pc_lookup).unwrap() {
-                    // println!("got unit");
                     let loc = source_location(&dwarf, &unit, pc_lookup, project_root).unwrap();
                     if let Some(best_file) = loc.0 {
-                        // println!("got logcation");
                         if let Some(best_line) = loc.1 {
                             if best_file.starts_with(project_root) {
-                                // println!(
-                                //     "adding line mapping {} {} {}",
-                                //     pc_lookup,
-                                //     best_file.to_string_lossy(),
-                                //     best_line
-                                // );
                                 self.steps.push(pc_lookup);
                                 self.steps_lines.insert(
                                     pc_lookup,
@@ -642,11 +652,44 @@ impl SeerHook {
         }
     }
 
+    // Illustration of a specific, ungeneralised case of parsing a complex structure
+    fn _parse_local_variables<M: GuestMemory>(
+        &self,
+        pc_lookup: &u64,
+        dwarf_program: &DwarfProgram,
+        mem: &mut M,
+        reg: &[u64; 12],
+    ) -> HashMap<String, Value> {
+        let mut results: Vec<&VariableInterval> = vec![];
+        dwarf_program
+            .variable_interval_tree
+            .search(pc_lookup, &mut results);
+        let mut step_variables: HashMap<String, Value> = HashMap::new();
+        if results.len() > 0 {
+            for result in results {
+                println!(
+                    "{} {:?} {} {}",
+                    result.name, result.decl_mapping, result.register, result.type_signature
+                );
+                if result.type_signature == "&solana_account_info::AccountInfo" {
+                    let account_flat = AccountInfoRepr::fetch(mem, reg[result.register as usize]);
+
+                    println!("{:?}", account_flat);
+
+                    step_variables.insert(
+                        result.name.clone(),
+                        serde_json::to_value(account_flat).unwrap(),
+                    );
+                }
+            }
+        }
+
+        return step_variables;
+    }
+
     pub fn log(&mut self, message: &str) {
-        println!("GOT MESSAGE: {}", message);
         let prev_step = self.steps.last();
         if let Some(ps) = prev_step {
-            println!("prev ps {}", ps);
             self.steps_logs.push((*ps, message.to_string()));
         }
     }

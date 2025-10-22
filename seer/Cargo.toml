@@ -16,14 +16,14 @@ name = "seer"
 once_cell = "1.21.3"
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }
+solana-program = { workspace = true }
 solana-signature = { workspace = true }
-sqlx = { version = "=0.8.1", features = ["sqlite"] }
-rusqlite = "=0.32.1"
+seer-interface = { workspace = true }
 gimli = "0.32.3"
 rustc-demangle = "0.1.26"
 anyhow.workspace = true
 object = "0.37.3"
-serde.workspace = true
+serde = { workspace = true }
 serde_json.workspace = true
 memmap2.workspace = true
 typed-arena = "2.0.2"

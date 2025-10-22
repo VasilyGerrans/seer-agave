@@ -1,14 +1,12 @@
 use gimli::{
-    AttributeValue, DW_AT_abstract_origin, DW_AT_call_file, DW_AT_call_line, DW_AT_decl_file,
-    DW_AT_decl_line, DW_AT_linkage_name, DW_AT_specification, DW_TAG_compile_unit,
-    DW_TAG_inlined_subroutine, DW_TAG_subprogram, DebuggingInformationEntry, DwTag, Dwarf,
-    DwarfSections, EndianSlice, EntriesTreeNode, Reader, RunTimeEndian, SectionId, Unit,
-    UnitHeader, UnitOffset,
+    AttributeValue, DW_AT_abstract_origin, DW_AT_call_file, DW_AT_call_line, DW_AT_decl_file, DW_AT_decl_line, DW_AT_linkage_name, DW_AT_location, DW_AT_name, DW_AT_specification, DW_AT_type, DW_TAG_compile_unit, DW_TAG_inlined_subroutine, DW_TAG_subprogram, DW_TAG_variable, DebuggingInformationEntry, DwTag, Dwarf, DwarfSections, EndianSlice, EntriesTreeNode, Operation, Reader, RunTimeEndian, SectionId, Unit, UnitHeader, UnitOffset
 };
 use object::{Object, ObjectSection};
 use rustc_demangle::demangle;
 use solana_pubkey::Pubkey;
 use std::{collections::HashMap, fs, io, path::PathBuf};
+
+pub mod types;
 
 #[derive(Clone, Debug)]
 pub struct LineMapping {
@@ -32,11 +30,51 @@ pub struct Interval<R: Reader> {
     pub depth: u32,
 }
 
+pub struct VariableInterval {
+    begin: u64,
+    end: u64,
+    pub name: String,
+    pub type_signature: String,
+    pub decl_mapping: LineMapping,
+    pub register: u16,
+}
+
+pub struct VariableIntervalNode {
+    center: u64,
+    overlaps: Vec<VariableInterval>,
+    left: Option<Box<VariableIntervalNode>>,
+    right: Option<Box<VariableIntervalNode>>,
+}
+
 pub struct IntervalNode<R: Reader> {
     center: u64,
     overlaps: Vec<Interval<R>>,
     left: Option<Box<IntervalNode<R>>>,
     right: Option<Box<IntervalNode<R>>>,
+}
+
+impl VariableIntervalNode {
+    pub fn search<'a>(&'a self, pc: &u64, results: &mut Vec<&'a VariableInterval>) {
+        let pc_lookup = *pc;
+
+        for o in &self.overlaps {
+            if o.begin <= pc_lookup && pc_lookup < o.end {
+                results.push(o);
+            }
+        }
+
+        if pc_lookup < self.center {
+            if let Some(left) = &self.left {
+                left.search(pc, results);
+            }
+        }
+
+        if pc_lookup > self.center {
+            if let Some(right) = &self.right {
+                right.search(pc, results);
+            }
+        }
+    }
 }
 
 impl<R: Reader> IntervalNode<R> {
@@ -126,6 +164,7 @@ pub struct DwarfProgram {
     pub significant_instruction_map:
         HashMap<UnitOffset, TraceDieNode<EndianSlice<'static, RunTimeEndian>>>,
     pub interval_tree: Box<IntervalNode<EndianSlice<'static, RunTimeEndian>>>,
+    pub variable_interval_tree: Box<VariableIntervalNode>,
     pub root_instruction_unit: HashMap<UnitOffset, UnitHeader<EndianSlice<'static, RunTimeEndian>>>,
 }
 
@@ -169,12 +208,15 @@ impl DwarfParser {
         let mut dwarf_programs: HashMap<Pubkey, DwarfProgram> = HashMap::new();
 
         for (program_address, program_path) in dwarf_sources {
-            // println!("{} {}", program_address, program_path.to_string_lossy());
-            // let owned_dwarf = OwnedDwarf::load(program_path.clone().to_str().unwrap()).unwrap();
             let owned_dwarf: &'static OwnedDwarf = Box::leak(Box::new(
                 OwnedDwarf::load(program_path.to_str().unwrap()).unwrap(),
             ));
-            let (hash_map, interval_tree, hash_root_units) =
+            let (
+                hash_map, 
+                interval_tree, 
+                variable_interval_tree,
+                hash_root_units
+            ) =
                 build_lookup_trees(&owned_dwarf.dwarf(), project_root.as_str()).unwrap();
 
             dwarf_programs.insert(
@@ -184,6 +226,7 @@ impl DwarfParser {
                     owned_dwarf: owned_dwarf,
                     significant_instruction_map: hash_map,
                     interval_tree: interval_tree,
+                    variable_interval_tree: variable_interval_tree,
                     root_instruction_unit: hash_root_units,
                 },
             );
@@ -202,13 +245,12 @@ pub fn build_lookup_trees(
 ) -> anyhow::Result<(
     HashMap<UnitOffset<usize>, TraceDieNode<EndianSlice<'static, RunTimeEndian>>>,
     Box<IntervalNode<EndianSlice<'static, RunTimeEndian>>>,
+    Box<VariableIntervalNode>,
     HashMap<UnitOffset<usize>, UnitHeader<EndianSlice<'static, RunTimeEndian>, usize>>,
 )> {
-    // let owned_dwarf = OwnedDwarf::load(program_path.to_str().unwrap()).unwrap();
-    // let dwarf = owned_dwarf.dwarf();
-
     let mut trace_mappings = HashMap::new();
     let mut trace_ranges = vec![];
+    let mut variable_ranges: Vec<VariableInterval> = vec![];
     let mut die_units = HashMap::new();
 
     let mut units = dwarf.units();
@@ -231,13 +273,15 @@ pub fn build_lookup_trees(
                 &mut trace_mappings,
                 &mut trace_ranges,
                 &mut die_units,
+                &mut variable_ranges,
             );
         }
     }
 
     let interval_tree = build_interval_tree(trace_ranges).unwrap();
+    let variable_interval_tree: Box<VariableIntervalNode> = build_variable_interval_tree(variable_ranges).unwrap();
 
-    Ok((trace_mappings, interval_tree, die_units))
+    Ok((trace_mappings, interval_tree, variable_interval_tree, die_units))
 }
 
 fn descend_dwarf<'a>(
@@ -251,6 +295,7 @@ fn descend_dwarf<'a>(
     die_mappings: &mut HashMap<UnitOffset<usize>, TraceDieNode<EndianSlice<'a, RunTimeEndian>>>,
     die_ranges: &mut Vec<Interval<EndianSlice<'a, RunTimeEndian>>>,
     die_units: &mut HashMap<UnitOffset<usize>, UnitHeader<EndianSlice<'a, RunTimeEndian>, usize>>,
+    variable_ranges: &mut Vec<VariableInterval>,
 ) -> anyhow::Result<()> {
     let current_entry = current_node.entry();
     let current_tag = current_entry.tag();
@@ -261,7 +306,7 @@ fn descend_dwarf<'a>(
 
     let mut next_parent_offset = parent_offset;
 
-    if current_entry.tag() == DW_TAG_subprogram || current_entry.tag() == DW_TAG_inlined_subroutine
+    if current_tag == DW_TAG_subprogram || current_tag == DW_TAG_inlined_subroutine
     {
         let current_offset = current_entry.offset();
 
@@ -304,6 +349,84 @@ fn descend_dwarf<'a>(
                 })
             }
         }
+    } else if current_tag == DW_TAG_variable {
+        // Any decent human being would split this up into functions, but I'm not a decent human being...
+        // In my defence: this is ad hoc to illustrate the fetching of a very particular data structure.
+        if let Some(attr) = current_entry.attr(DW_AT_location)? {
+            if let Some(mut locs) = dwarf.attr_locations(&current_unit, attr.value())? {
+                if let Some(ao_attr) = current_entry.attr(DW_AT_abstract_origin)? {
+                    match ao_attr.value() {
+                        AttributeValue::UnitRef(ao_offset) => {
+                            let origin = current_unit.entry(ao_offset)?;
+
+                            if let Some(ao_file_attr) = origin.attr(DW_AT_decl_file)? {
+                                if let AttributeValue::FileIndex(idx) = ao_file_attr.value() {
+                                    if let Some(lp) = &current_unit.line_program {
+                                        if let Some(fe) = lp.header().file(idx) {
+                                            let resolved_file_path = resolve_file_path(
+                                                dwarf, 
+                                                current_unit, 
+                                                fe, 
+                                                lp.header(),
+                                            )?;
+
+                                            if resolved_file_path.starts_with(project_directory_path) {
+                                                if let Some(ao_type_attr) = origin.attr_value(DW_AT_type)? {
+                                                    if let AttributeValue::UnitRef(offset) = ao_type_attr {
+                                                        let target_die = current_unit.entry(offset).unwrap();
+
+                                                        if let Some(ao_type_name_attr) = target_die.attr(DW_AT_name)? {
+                                                            if let Some(type_signature) = resolve_str(dwarf, ao_type_name_attr.value())? {
+                                                                let mut name: Option<String> = None;
+                                                                let mut decl_line: Option<u64> = None;
+                    
+                                                                if let Some(ao_name_attr) = origin.attr(DW_AT_name)? {
+                                                                    if let Some(raw) = resolve_str(dwarf, ao_name_attr.value())? {
+                                                                        name = Some(raw);
+                                                                    }
+                                                                }
+                                    
+                                                                if let Some(ao_line_attr) = origin.attr(DW_AT_decl_line)? {
+                                                                    if let AttributeValue::Udata(l) = ao_line_attr.value() {
+                                                                        decl_line = Some(l);
+                                                                    }
+                                                                }
+                
+                                                                while let Some(loc) = locs.next()? {
+                                                                    let mut ops = loc.data.operations(current_unit.encoding());
+                                                                    while let Some(op) = ops.next()? {
+                                                                        if let Operation::Register { register } = op {
+                                                                            variable_ranges.push(
+                                                                                VariableInterval {
+                                                                                    begin: loc.range.begin,
+                                                                                    end: loc.range.end,
+                                                                                    register: register.0,
+                                                                                    name: name.clone().expect("Name not found for local variable!"),
+                                                                                    type_signature: type_signature.clone(),
+                                                                                    decl_mapping: LineMapping { 
+                                                                                        file: resolved_file_path.clone(), 
+                                                                                        line: decl_line.clone().expect("Decl line not found for local variable!"),
+                                                                                    }
+                                                                                }
+                                                                            );
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }       
+                }
+            }
+        }
     }
 
     let mut children = current_node.children();
@@ -319,6 +442,7 @@ fn descend_dwarf<'a>(
             die_mappings,
             die_ranges,
             die_units,
+            variable_ranges,
         );
     }
 
@@ -353,6 +477,38 @@ fn build_interval_tree<R: Reader>(trace_ranges: Vec<Interval<R>>) -> Option<Box<
         overlaps: overlaps,
         left: build_interval_tree(left),
         right: build_interval_tree(right),
+    }))
+}
+
+// Very stupid and ugly duplication, should be fixed later
+fn build_variable_interval_tree(variable_ranges: Vec<VariableInterval>) -> Option<Box<VariableIntervalNode>> {
+    if variable_ranges.is_empty() {
+        return None;
+    }
+
+    let mut points: Vec<u64> = variable_ranges.iter().map(|i| (i.begin + i.end) / 2).collect();
+    points.sort();
+    let center = points[points.len() / 2];
+
+    let mut overlaps = Vec::new();
+    let mut left = Vec::new();
+    let mut right = Vec::new();
+
+    for vr in variable_ranges {
+        if vr.end < center {
+            left.push(vr);
+        } else if vr.begin > center {
+            right.push(vr);
+        } else {
+        overlaps.push(vr);
+        }
+    }
+
+    Some(Box::new(VariableIntervalNode {
+        center: center,
+        overlaps: overlaps,
+        left: build_variable_interval_tree(left),
+        right: build_variable_interval_tree(right),
     }))
 }
 
@@ -542,16 +698,6 @@ pub fn source_location<R: Reader>(
         let mut rows = program.clone().rows();
         while let Some((header, row)) = rows.next_row()? {
             let addr = row.address();
-            // println!("addr {}", addr);
-
-            // if addr > pc {
-            //     if let Some(current_best_file) = best_file.clone() {
-            //         if current_best_file.starts_with(project_root) {
-            //             break;
-            //         }
-            //     }
-            // }
-
             if addr == pc {
                 if let Some(fe) = row.file(header) {
                     let fname = dwarf.attr_string(unit, fe.path_name())?;

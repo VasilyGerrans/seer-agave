@@ -191,7 +191,7 @@ impl<'a, 'b, C: ContextObject> Interpreter<'a, 'b, C> {
             self.vm.register_trace.push(self.reg);
         }
 
-        seer::get().step(&self.get_dbg_pc());
+        seer::get().step(&self.get_dbg_pc(), &mut self.vm.memory_mapping, &self.reg);
 
         match insn.opc {
             ebpf::LD_DW_IMM if !self.executable.get_sbpf_version().disable_lddw() => {
