@@ -96,7 +96,7 @@ members = [
     "runtime-transaction",
     "scheduler-bindings", 
     "seer", 
-    "seer-demo", "seer-interface",
+    "seer-interface",
     "send-transaction-service",
     "stake-accounts",
     "storage-bigtable",
