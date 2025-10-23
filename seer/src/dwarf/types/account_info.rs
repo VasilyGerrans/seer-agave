@@ -13,7 +13,7 @@ mod pubkey_as_base58 {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&key.to_string()) // Pubkey::to_string() gives base58
+        serializer.serialize_str(&key.to_string())
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Pubkey, D::Error>

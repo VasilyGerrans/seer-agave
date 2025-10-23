@@ -182,8 +182,6 @@ impl OwnedDwarf {
         let data = fs::read(path)?;
         let obj = object::File::parse(&*data)?;
 
-        // println!("parsed path {}", path);
-
         let sections = DwarfSections::load(|id: SectionId| -> io::Result<Vec<u8>> {
             match obj.section_by_name(id.name()) {
                 Some(s) => Ok(s

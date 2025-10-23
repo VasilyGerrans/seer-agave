@@ -93,7 +93,6 @@ pub fn find_cu_for_pc<R: Reader>(
         while let Some(e) = ents.next()? {
             let r = e.range();
             if pc >= r.begin && pc <= r.end {
-                // println!("in aranges!! {} {} {}", r.begin, pc, r.end);
                 let dio = h.debug_info_offset();
                 let uheader = dwarf.debug_info.header_from_offset(dio)?;
                 return Ok(dwarf.unit(uheader).map(Some)?);
@@ -107,7 +106,6 @@ pub fn find_cu_for_pc<R: Reader>(
         let mut ranges = dwarf.unit_ranges(&unit)?;
         while let Some(r) = ranges.next()? {
             if pc >= r.begin && pc <= r.end {
-                // println!("in conventional units!! {} {} {}", r.begin, pc, r.end);
                 return Ok(Some(unit));
             }
         }
@@ -510,51 +508,40 @@ impl SeerHook {
 
     pub fn activate(&mut self) {
         self.active = true;
-        println!("activated");
     }
 
     pub fn deactivate(&mut self) {
         self.active = false;
-        println!("deactivated");
     }
 
     pub fn set_current_tx(&mut self, tx: Signature) {
-        println!("set current tx {:?}", tx);
         if self.active {
             self.current_tx = Some(tx);
-            println!("current tx set");
         }
     }
 
     pub fn unset_current_tx(&mut self) {
-        println!("unset current tx");
         if self.active {
             self.current_tx = None;
-            println!("current tx unset");
         }
     }
 
     pub fn start_instruction(&mut self, instruction: u8) {
-        println!("start instruction {}", instruction);
         if self.active {
             self.current_tx
                 .is_none()
                 .then(|| panic!("current_tx is not defined by start_instruction call!"));
             self.current_instruction = instruction;
-            println!("instruction set {}", instruction);
         }
     }
 
     pub fn end_instruction(&mut self) {
-        println!("end instruction");
         if self.active {
             self.current_instruction = 0;
-            println!("instruction unset");
         }
     }
 
     pub fn start_program(&mut self, program: Pubkey) {
-        println!("start program {:?}", program);
         if self.active
             && self
                 .parser
@@ -579,7 +566,6 @@ impl SeerHook {
     }
 
     pub fn end_program(&mut self, program: Pubkey, err: Option<InstructionError>) {
-        println!("end program");
         if self.active
             && self
                 .parser
@@ -667,15 +653,8 @@ impl SeerHook {
         let mut step_variables: HashMap<String, Value> = HashMap::new();
         if results.len() > 0 {
             for result in results {
-                println!(
-                    "{} {:?} {} {}",
-                    result.name, result.decl_mapping, result.register, result.type_signature
-                );
                 if result.type_signature == "&solana_account_info::AccountInfo" {
                     let account_flat = AccountInfoRepr::fetch(mem, reg[result.register as usize]);
-
-                    println!("{:?}", account_flat);
-
                     step_variables.insert(
                         result.name.clone(),
                         serde_json::to_value(account_flat).unwrap(),
