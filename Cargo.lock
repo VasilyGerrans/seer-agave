@@ -208,7 +208,7 @@ dependencies = [
  "clap 2.34.0",
  "crossbeam-channel",
  "csv",
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.31",
  "histogram",
  "itertools 0.12.1",
@@ -557,7 +557,7 @@ dependencies = [
  "bitvec",
  "bs58",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "histogram",
  "itertools 0.12.1",
  "log",
@@ -2339,6 +2339,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
+dependencies = [
+ "cfg-if 1.0.3",
+ "crossbeam-utils",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core 0.9.12",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3302,22 +3316,25 @@ dependencies = [
 
 [[package]]
 name = "governor"
-version = "0.6.3"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68a7f542ee6b35af73b06abc0dad1c1bae89964e4e253bc4b587b91c9637867b"
+checksum = "444405bbb1a762387aa22dd569429533b54a1d8759d35d3b64cb39b0293eaa19"
 dependencies = [
  "cfg-if 1.0.3",
- "dashmap",
- "futures 0.3.31",
+ "dashmap 6.1.0",
+ "futures-sink",
  "futures-timer",
- "no-std-compat",
+ "futures-util",
+ "getrandom 0.3.3",
+ "hashbrown 0.15.5",
  "nonzero_ext",
  "parking_lot 0.12.5",
  "portable-atomic",
  "quanta",
- "rand 0.8.5",
+ "rand 0.9.2",
  "smallvec",
  "spinning_top",
+ "web-time",
 ]
 
 [[package]]
@@ -4721,12 +4738,6 @@ dependencies = [
  "libc",
  "memoffset",
 ]
-
-[[package]]
-name = "no-std-compat"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
 
 [[package]]
 name = "nom"
@@ -6660,7 +6671,7 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e56dd856803e253c8f298af3f4d7eb0ae5e23a737252cd90bb4f3b435033b2d"
 dependencies = [
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.31",
  "lazy_static",
  "log",
@@ -7073,7 +7084,7 @@ dependencies = [
  "bzip2",
  "criterion",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "indexmap 2.11.4",
  "io-uring",
  "itertools 0.12.1",
@@ -7897,7 +7908,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.31",
  "futures-util",
  "indexmap 2.11.4",
@@ -8168,7 +8179,7 @@ dependencies = [
  "conditional-mod",
  "criterion",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "derive_more 1.0.0",
  "fs_extra",
  "futures 0.3.31",
@@ -8714,7 +8725,7 @@ dependencies = [
  "bs58",
  "bv",
  "bytes",
- "dashmap",
+ "dashmap 5.5.3",
  "im",
  "log",
  "memmap2 0.5.10",
@@ -9122,7 +9133,7 @@ dependencies = [
  "conditional-mod",
  "criterion",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "eager",
  "fs_extra",
  "futures 0.3.31",
@@ -9444,7 +9455,7 @@ dependencies = [
  "bincode",
  "bytes",
  "cfg-if 1.0.3",
- "dashmap",
+ "dashmap 5.5.3",
  "hxdmp",
  "itertools 0.12.1",
  "log",
@@ -10049,7 +10060,7 @@ dependencies = [
  "bincode",
  "bs58",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "itertools 0.12.1",
  "jsonrpc-core",
  "jsonrpc-core-client",
@@ -10331,7 +10342,7 @@ dependencies = [
  "bv",
  "bytemuck",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "dir-diff",
  "ed25519-dalek 1.0.1",
  "fnv",
@@ -10932,7 +10943,7 @@ dependencies = [
  "bytes",
  "clap 4.5.48",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.31",
  "futures-util",
  "governor",
@@ -11718,7 +11729,7 @@ dependencies = [
  "aquamarine",
  "assert_matches",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "derive-where",
  "derive_more 1.0.0",
  "dyn-clone",
@@ -11780,7 +11791,7 @@ dependencies = [
  "bytes",
  "clap 4.5.48",
  "crossbeam-channel",
- "dashmap",
+ "dashmap 5.5.3",
  "futures 0.3.31",
  "futures-util",
  "governor",
